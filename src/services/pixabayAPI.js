@@ -23,7 +23,8 @@ export async function pixabayGetImages(searchQuery, searchPage) {
       webformatURL,
       largeImageURL,
     }));
-    return { imagesData, totalHits };
+    const lastPage = params.get('page') * params.get('per_page') >= totalHits;
+    return { imagesData, totalHits, lastPage };
   } catch (err) {
     console.log(err);
   }

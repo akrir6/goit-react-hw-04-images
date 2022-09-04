@@ -1,4 +1,5 @@
-import { Component } from "react";
+import { useState, useEffect } from "react";
+import { animateScroll as scroll } from 'react-scroll';
 import { pixabayGetImages } from "./../services/pixabayAPI";
 import { Container } from "./App.styled";
 import { Loader } from "./Loader/Loader"; 
@@ -7,107 +8,82 @@ import { ImageGallery } from "./ImageGallery/ImageGallery";
 import { Searchbar } from "./Searchbar/Searchbar";
 import { BadRequest } from "./BadRequest/BadRequest";
 import { ModalWindow } from "./Modal/Modal";
-export class App extends Component {
-  state = {
-    images: [],
-    page: 1,
-    query: '',
-    modalImageSrc:'',
-    showModal: false,
-    isLoading: false,
-    isNotLastPage: false,
-    isEmpty:false,
-   }
 
-  componentDidUpdate(_, prevState) {
-    const { query, page } = this.state;
-     console.log(prevState.page,this.state.page);
-    if (prevState.query !== query || prevState.page !== page) {
-     
-      this.reciveImagesData();
-      
-    }
-
-    if (page !== 1) {
-      document.body.scrollIntoView({
-        behavior: "smooth", block: "end"
-      });
-    }
+export const App = () => {
+  const [images, setImages] = useState([]);
+  const [page, setPage] = useState(1);
+  const [query, setQuery] = useState('');
+  const [modalImageSrc, setModalImageSrc] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isNotLastPage, setIsNotLastPage] = useState(false);
+  const [isEmpty, setIsEmpty] = useState(false);
     
-  }
+  useEffect(() => {
+  if (!query) return;
 
-  async reciveImagesData() {
-    const { images, query, page } = this.state;
-    
-    this.setState({ isLoading: true });
-    const { imagesData, totalHits } = await pixabayGetImages(query, page);
+    (async () => {
+      setIsLoading(true);
+      const { imagesData, totalHits, lastPage } = await pixabayGetImages(query, page);
 
-    if (totalHits) {
-      this.setState(prevState => ({
-        images: [...prevState.images, ...imagesData]
-      }));
-    }
+      if (totalHits) {
+        setImages(prevImages => [...prevImages, ...imagesData])
+      }
   
-    this.setState({
-      isNotLastPage: images.length+imagesData.length < totalHits,
-      isLoading: false,
-      isEmpty: !totalHits,
-    })
+      setIsNotLastPage(!lastPage);
+      setIsLoading(false);
+      setIsEmpty(!totalHits);    
+
+      if (page!==1) scroll.scrollToBottom();
+    })();
+  
+  }, [query, page])
+
+  
     
-  }
-    
-  searchQueryHandler = (query) => {
+  const searchQueryHandler = (query) => {
     if (query) {
-      this.setState({
-        images: [],
-        page: 1,
-        query,
-      });
+      setImages([]);
+      setPage(1);
+      setQuery(query);
     }
   }
   
-  loadMoreHandler = () => {
-    this.setState(prevState => ({
-      page: prevState.page + 1,
-    }));
+  const loadMoreHandler = () => {
+    setPage(prevPage => prevPage + 1);
   }
   
-  openModalHandler = (largeImageURL) => {
-    this.setState({
-      modalImageSrc: largeImageURL,
-      showModal: true,
-    })
+  const openModalHandler = (largeImageURL) => {
+    setModalImageSrc(largeImageURL);
+    setShowModal(true);
   }
 
-  closeModalHandler = () => {
-    this.setState({showModal: false})
+  const closeModalHandler = () => {
+    setShowModal(false);
   }
 
-  render() {
-    const { images, isLoading, isNotLastPage, isEmpty, showModal, modalImageSrc } = this.state;
-    
-    return (      
-      <Container>
-        <Searchbar onSubmit={this.searchQueryHandler} />
-        {images.length>0 &&
-          <ImageGallery images={images} onClick={this.openModalHandler} />
-        }
-        {isLoading
-          ? <Loader />
-          : isNotLastPage && <Button onClick={this.loadMoreHandler}>
-              Load more
-          </Button>
-        }
-        {isEmpty && <BadRequest>
-            Sorry, there are no images matching your search query. Please try again.
-          </BadRequest>
-        }
-        {showModal && 
-          <ModalWindow modalImageSrc={modalImageSrc} onClickOverlay={this.closeModalHandler} />
-        }
-      </Container>
-         
-    )
-  }
+  return (      
+    <Container>
+      <Searchbar onSubmit={searchQueryHandler} />
+      {images.length>0 &&
+        <ImageGallery images={images} onClick={openModalHandler} />
+      }
+      {isLoading
+        ? <Loader />
+        : isNotLastPage && <Button onClick={loadMoreHandler}>
+            Load more
+        </Button>
+      }
+      {isEmpty && <BadRequest>
+          Sorry, there are no images matching your search query. Please try again.
+        </BadRequest>
+      }
+      {showModal && 
+        <ModalWindow modalImageSrc={modalImageSrc} onClickOverlay={closeModalHandler} />
+      }
+    </Container>
+        
+  )
 }
+
 
